@@ -1492,7 +1492,10 @@ class TestNotesDiagnosticsContract(LinuxTestCase):
         backend = world.backend(desktop_dirs=None, applications_dir=None)
         self.assertEqual(backend.applications_dir, world.apps["user"])
         browsers = backend.list_browsers()
-        self.assertEqual([browser.id for browser in browsers], ["google-chrome"])
+        # The default directories are the real ones, so the machine may also
+        # have its own browsers (a CI runner ships Edge).  What matters is that
+        # the user's local directory is among them.
+        self.assertIn("google-chrome", [browser.id for browser in browsers])
 
     def test_xdg_data_home_redirects_applications_dir(self) -> None:
         world = FakeWorld(self.root / "xdg")
