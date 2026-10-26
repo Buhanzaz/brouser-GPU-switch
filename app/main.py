@@ -567,11 +567,29 @@ def run_gui(backend: PlatformBackend, screenshot_mode: bool = False) -> int:
 
     language: Optional[str] = None
     try:
-        from app.i18n import initial_language
+        from app.i18n import initial_language, load_saved_language, save_language
 
         language = initial_language()
+        if not screenshot_mode and load_saved_language() is None:
+            # First launch: ask once, remember the answer and never ask again.
+            from app.i18n import ask_language
+
+            try:
+                root.withdraw()
+            except Exception:
+                pass
+            try:
+                chosen = ask_language(root, language)
+            finally:
+                try:
+                    root.deiconify()
+                except Exception:
+                    pass
+            if chosen:
+                save_language(chosen)
+                language = chosen
     except Exception:
-        language = None
+        language = language or None
 
     app = None
     try:
@@ -598,24 +616,7 @@ def run_gui(backend: PlatformBackend, screenshot_mode: bool = False) -> int:
                     pass
         except Exception:
             pass
-    if getattr(app, "restart_language", None):
-        _restart_application()
     return 0
-
-
-def _restart_application() -> None:
-    """Reopen the program with the same command line (after a language change)."""
-    executable = sys.executable or ""
-    if not executable:
-        return
-    if getattr(sys, "frozen", False):
-        arguments = [executable, *sys.argv[1:]]
-    else:
-        arguments = [executable, os.path.abspath(sys.argv[0]), *sys.argv[1:]]
-    try:
-        os.execv(executable, arguments)
-    except OSError:
-        pass
 
 
 def _prepare_screenshot_mode(root: Any, app: Any) -> None:

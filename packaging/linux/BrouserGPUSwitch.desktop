@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=GPU Switch
+Comment=Choose which graphics card a browser uses
+Exec=BrouserGPUSwitch
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true

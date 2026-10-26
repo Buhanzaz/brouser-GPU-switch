@@ -12,11 +12,11 @@ or directly::
 Two artefacts are produced from one analysis:
 
 * ``dist/BrouserGPUSwitch.exe`` - one self-contained file.  It unpacks itself
-  into the system temp folder on every start, which some antivirus suites and
-  restricted profiles block (the "Could not create temporary directory" error).
+  on every start, but not into the system temp folder: it unpacks under
+  ``%LOCALAPPDATA%`` instead, which always exists and is usually allowed where
+  ``%TEMP%`` is blocked by antivirus policy.
 * ``dist/BrouserGPUSwitch/BrouserGPUSwitch.exe`` - the same program as a plain
-  folder.  Nothing is unpacked, so this variant always starts, including on
-  machines where the single-file build is blocked.
+  folder.  Nothing is unpacked at all, so this variant always starts.
 
 Neither variant requests administrator rights: the embedded manifest uses the
 default ``asInvoker`` level.
@@ -75,7 +75,7 @@ COMMON = dict(
     strip=False,
     upx=False,
     upx_exclude=[],
-    runtime_tmpdir=None,
+    runtime_tmpdir=r"%LOCALAPPDATA%",
     # Windowed (GUI-subsystem) build: Windows never opens a console window, so
     # a double-click shows only the program window - not even the brief flash a
     # console build would produce.  Command-line modes (--self-test and friends)

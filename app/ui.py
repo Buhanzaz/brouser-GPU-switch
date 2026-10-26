@@ -198,9 +198,10 @@ class GpuSwitchApp:
         self._ready_dialog: Optional[tk.Toplevel] = None
         self._grab_after_id: Optional[str] = None
         self._body_sync_id: Optional[str] = None
-        # Set when the user picks another interface language: the launcher
-        # reopens the program so every string is built in the new language.
-        self.restart_language: Optional[str] = None
+        # Selection kept across an in-place language change so the user keeps
+        # working with the same browser and accelerator.
+        self._restore_browser_id: str = ""
+        self._restore_option_id: str = ""
 
         # Hooks that tests (and future automation) may replace.
         self.confirm: Callable[[str, str], bool] = self._ask_confirm
@@ -340,7 +341,7 @@ class GpuSwitchApp:
         self.language_combo.bind("<<ComboboxSelected>>", self._on_language_selected)
 
     def _on_language_selected(self, _event: Optional["tk.Event[Any]"] = None) -> None:
-        """Store the picked language and reopen the window with it."""
+        """Store the picked language and rebuild the window in place."""
         try:
             name = str(self.language_combo.get())
         except tk.TclError:
@@ -349,8 +350,51 @@ class GpuSwitchApp:
         if not code or code == self.language:
             return
         save_language(code)
-        self.restart_language = code
-        self.close()
+        self._switch_language(code)
+
+    def _switch_language(self, code: str) -> None:
+        """Rebuild every widget in ``code`` without restarting the process.
+
+        Rewriting the interface in place keeps the program responsive and
+        avoids re-executing the frozen executable (which on locked-down
+        machines can fail while unpacking its temporary directories).
+        """
+        browser_id = ""
+        browser = self.current_browser()
+        if browser is not None:
+            browser_id = browser.id
+        option_id = ""
+        try:
+            option_id = str(self._option_var.get())
+        except tk.TclError:
+            option_id = ""
+
+        self._cancel_poll()
+        self.close_ready_dialog()
+        for child in list(self.root.winfo_children()):
+            child.destroy()
+
+        self.translator = Translator(code)
+        self.language = self.translator.language
+        self.tr = self.translator.t
+        self._snapshot = None
+        self._busy = False
+        self._body_sync_id = None
+        self._pending_placeholder_item = None
+        self._current_note_shown = False
+        self._running_warning_shown = False
+        self._restore_browser_shown = False
+        self._option_radio_by_id = {}
+        self._restore_browser_id = browser_id
+        self._restore_option_id = option_id
+        try:
+            self._option_var = tk.StringVar(master=self.root, value=option_id)
+        except tk.TclError:
+            return
+
+        self._build_ui()
+        self._set_status("", INFO)
+        self.start_refresh()
 
     def _build_system_section(self, parent: ttk.Frame) -> None:
         px = self.theme.px
@@ -931,6 +975,9 @@ class GpuSwitchApp:
         self._populate_notes(snapshot)
         self._populate_browsers(snapshot)
         self._on_browser_selected()
+        if self._restore_option_id and self._restore_option_id in self._option_radio_by_id:
+            self._option_var.set(self._restore_option_id)
+        self._restore_option_id = ""
         self._update_action_states()
 
         if snapshot.problems:
@@ -1151,6 +1198,9 @@ class GpuSwitchApp:
         browser = self.current_browser()
         if browser is not None:
             previous_id = browser.id
+        if not previous_id:
+            previous_id = self._restore_browser_id
+            self._restore_browser_id = ""
         values = [self._browser_display(b) for b in snapshot.browsers]
         self.browser_combo.configure(values=values)
         if not values:

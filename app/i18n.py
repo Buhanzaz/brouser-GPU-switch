@@ -891,3 +891,125 @@ def translate_option_description(description: str, translator: Translator) -> st
         return text
     key = _OPTION_DESCRIPTION.get(text)
     return translator.t(key) if key is not None else text
+
+
+def ask_language(root: Any, initial: Optional[str] = None) -> Optional[str]:
+    """Ask which interface language to use on the very first launch.
+
+    Returns the chosen code, or ``None`` when the dialog was closed without a
+    choice (the caller then keeps the system language).  The answer is stored
+    by the caller through :func:`save_language`; later changes happen in the
+    header of the main window and need no dialog at all.
+    """
+    try:
+        import tkinter as tk
+        from tkinter import ttk
+
+        from app import theme as theme_module
+    except Exception:
+        return None
+
+    start = normalize_language(initial) or DEFAULT_LANGUAGE
+    translated = Translator(start)
+    try:
+        theme = theme_module.apply(root)
+        page = theme.colors["page"]
+        card = theme.colors["card"]
+        text = theme.colors["text"]
+        text2 = theme.colors["text2"]
+        font_title = theme.font(20, "bold")
+        font_body = theme.font(14)
+        px = theme.px
+    except Exception:
+        theme = None
+        page, card, text, text2 = "#F3F3F3", "#FFFFFF", "#1A1A1A", "#5C5C5C"
+        font_title = ("Segoe UI", -20, "bold")
+        font_body = ("Segoe UI", -14)
+        px = lambda value: max(1, int(round(value)))
+
+    chosen: List[str] = []
+    dialog = tk.Toplevel(root)
+    dialog.title("GPU Switch")
+    dialog.transient(root)
+    dialog.resizable(False, False)
+    try:
+        dialog.configure(background=page)
+    except Exception:
+        pass
+
+    outer = tk.Frame(dialog, background=page, padx=px(24), pady=px(20))
+    outer.grid(row=0, column=0, sticky="nsew")
+    outer.columnconfigure(0, weight=1)
+
+    tk.Label(
+        outer,
+        text=translated.t("choice_title"),
+        background=page,
+        foreground=text,
+        font=font_title,
+        anchor="w",
+        justify="left",
+    ).grid(row=0, column=0, sticky="w")
+    tk.Label(
+        outer,
+        text=translated.t("choice_hint"),
+        background=page,
+        foreground=text2,
+        font=font_body,
+        anchor="w",
+        justify="left",
+        wraplength=px(360),
+    ).grid(row=1, column=0, sticky="w", pady=(px(6), px(12)))
+
+    options = tk.Frame(outer, background=card, padx=px(14), pady=px(10))
+    options.grid(row=2, column=0, sticky="ew")
+    options.columnconfigure(0, weight=1)
+    variable = tk.StringVar(master=dialog, value=start)
+    for offset, (code, name) in enumerate(LANGUAGES):
+        ttk.Radiobutton(
+            options,
+            text=name,
+            value=code,
+            variable=variable,
+            style="Option.TRadiobutton",
+        ).grid(row=offset, column=0, sticky="w", pady=(px(2), 0))
+
+    buttons = tk.Frame(outer, background=page)
+    buttons.grid(row=3, column=0, sticky="e", pady=(px(16), 0))
+
+    def finish() -> None:
+        try:
+            chosen.append(str(variable.get() or start))
+        finally:
+            dialog.destroy()
+
+    def cancel(_event: Any = None) -> None:
+        dialog.destroy()
+
+    ttk.Button(
+        buttons, text=translated.t("choice_ok"), style="Accent.TButton", command=finish
+    ).grid(row=0, column=0)
+    dialog.bind("<Return>", lambda _event: finish())
+    dialog.bind("<Escape>", cancel)
+    dialog.protocol("WM_DELETE_WINDOW", cancel)
+
+    dialog.update_idletasks()
+    try:
+        width = max(dialog.winfo_reqwidth(), px(420))
+        height = dialog.winfo_reqheight()
+        screen_w = dialog.winfo_screenwidth()
+        screen_h = dialog.winfo_screenheight()
+        x = max(0, (screen_w - width) // 2)
+        y = max(0, (screen_h - height) // 3)
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+        dialog.grab_set()
+        dialog.focus_force()
+    except Exception:
+        pass
+    try:
+        root.wait_window(dialog)
+    except Exception:
+        return None
+    if not chosen:
+        return None
+    return normalize_language(chosen[0]) or DEFAULT_LANGUAGE
