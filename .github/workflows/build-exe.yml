@@ -119,7 +119,10 @@ jobs:
 
       - name: Run the test suite
         run: |
-          python -m unittest discover -s tests -v
+          # tests/ targets a Windows host: the registry, process and GUI
+          # acceptance modules need Windows APIs. On this runner the portable
+          # modules run, plus the application's own UI smoke test under Xvfb.
+          python -m unittest tests.test_i18n tests.test_linux -v
           xvfb-run -a python main.py --mock --ui-smoke-test
 
       - name: Build the portable archive

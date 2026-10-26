@@ -1158,9 +1158,13 @@ class LiveRegistryReadOnlyTests(unittest.TestCase):
             backend.close()
         if not gpus:
             self.skipTest("no display adapters readable in this environment")
-        self.assertTrue(any(gpu.vendor in ("intel", "nvidia", "amd") for gpu in gpus))
+        known = [gpu for gpu in gpus if gpu.vendor in ("intel", "nvidia", "amd")]
+        if not known:
+            # GitHub's hosted runners expose only the Microsoft Basic Render
+            # Driver, which is not an Intel/NVIDIA/AMD adapter.
+            self.skipTest("the machine has no Intel/NVIDIA/AMD display adapter")
         self.assertTrue(all(gpu.id.startswith("windows:gpu:") for gpu in gpus))
-        kinds = {gpu.kind for gpu in gpus}
+        kinds = {gpu.kind for gpu in known}
         self.assertTrue(kinds & {"integrated", "discrete"})
 
     def test_real_user_gpu_preferences_are_readable(self):

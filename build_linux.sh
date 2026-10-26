@@ -12,7 +12,7 @@
 # run ./install.sh - no root rights, no package manager, no Python.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")"
 
 python3 -m PyInstaller --noconfirm --clean packaging/gpu-switch.spec
 
