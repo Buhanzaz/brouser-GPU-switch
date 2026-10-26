@@ -159,3 +159,13 @@ jobs:
             assets/BrouserGPUSwitch-windows.zip
             assets/BrouserGPUSwitch-linux-x86_64.tar.gz
           generate_release_notes: true
+          body: |
+            GPU Switch 1.0.0 — переключение графического ускорителя для браузера.
+            GPU Switch 1.0.0 — switch the graphics adapter used by a browser.
+
+            **Windows** · `BrouserGPUSwitch-Setup.exe` — установщик без прав администратора (клиентская установка в `%LOCALAPPDATA%\Programs\BrouserGPUSwitch`). `BrouserGPUSwitch.exe` — один便携ный файл. `BrouserGPUSwitch-windows.zip` — папка с программой, если антивирус мешает распаковке во временную папку.
+            **Linux** · `BrouserGPUSwitch-linux-x86_64.tar.gz` — распакуйте и запустите `./install.sh`; установка в `~/.local`, root не нужен.
+
+            Первый запуск спрашивает язык: Русский / English / 中文 / Español / Deutsch. Язык меняется в шапке окна.
+
+            [Русский](README.md) · [English](README.en.md) · [中文](README.zh.md) · [Español](README.es.md) · [Deutsch](README.de.md)
