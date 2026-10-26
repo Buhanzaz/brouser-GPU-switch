@@ -1,0 +1,81 @@
+name: build-exe
+
+# Builds BrouserGPUSwitch for Windows:
+#   dist/BrouserGPUSwitch.exe                  - single self-contained file
+#   dist/BrouserGPUSwitch/BrouserGPUSwitch.exe - folder build (no temp unpacking)
+# Run it from the Actions tab, or push a v* tag to attach the builds to a release.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    name: Windows builds
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyInstaller
+        run: python -m pip install --upgrade "pyinstaller>=6.0"
+
+      - name: Run the test suite
+        run: python -m unittest discover -s tests -v
+
+      - name: Build the exe
+        run: python -m PyInstaller --noconfirm --clean packaging/gpu-switch.spec
+
+      - name: Smoke-test the builds
+        shell: pwsh
+        run: |
+          # The exe is a windows-subsystem program: PowerShell does not wait
+          # for it, so start it explicitly and read the exit code.
+          function Invoke-GpuSwitch([string]$Path, [string]$Arguments) {
+            $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+            $startInfo.FileName = (Resolve-Path $Path).Path
+            $startInfo.Arguments = $Arguments
+            $startInfo.UseShellExecute = $false
+            $startInfo.RedirectStandardOutput = $true
+            $startInfo.RedirectStandardError = $true
+            $process = [System.Diagnostics.Process]::Start($startInfo)
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+            Write-Host $stdout
+            Write-Host $stderr
+            return $process.ExitCode
+          }
+          if ((Invoke-GpuSwitch 'dist\BrouserGPUSwitch.exe' '--self-test') -ne 0) { throw "self-test failed" }
+          if ((Invoke-GpuSwitch 'dist\BrouserGPUSwitch.exe' '--ui-smoke-test') -ne 0) { throw "ui-smoke-test failed" }
+          if ((Invoke-GpuSwitch 'dist\BrouserGPUSwitch\BrouserGPUSwitch.exe' '--self-test') -ne 0) { throw "folder build self-test failed" }
+
+      - name: Zip the folder build
+        shell: pwsh
+        run: Compress-Archive -Path 'dist\BrouserGPUSwitch\*' -DestinationPath 'dist\BrouserGPUSwitch-windows.zip' -Force
+
+      - name: Upload the builds as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrouserGPUSwitch-windows
+          path: |
+            dist/BrouserGPUSwitch.exe
+            dist/BrouserGPUSwitch-windows.zip
+          if-no-files-found: error
+
+      - name: Attach the builds to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/BrouserGPUSwitch.exe
+            dist/BrouserGPUSwitch-windows.zip
+          generate_release_notes: true

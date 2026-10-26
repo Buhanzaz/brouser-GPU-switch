@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+scratch/
+tests/.tmp*/
+tests/.probe*
+tests/rt-tmp/
+*.log
+
+# PyInstaller build output (build_exe.bat, .github/workflows/build-exe.yml).
+build/
+dist/
+build-tmp/
+.build-tools/
+
+# Empty directories left behind by sandboxed test runs (ACLs deny deletion).
+gpusw-ws-*/
+probe_root-*/
+probe-chmod-*/
+probe2-*/
+tmp-rt/
+i18n-test-*/
+i18n-dbg-*/
+.state-*.tmp
